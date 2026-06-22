@@ -1,0 +1,24 @@
+report_date,week_start,week_end,financial_year,eaf_period_pct,eaf_period_type,eaf_ytd_pct,uclf_week_pct,pclf_week_pct,unplanned_mw_avg,diesel_weekly_mzar,diesel_ytd_mzar,consec_days_no_ls,eaf70_count_ytd,disputed,notes
+2025-09-05,2025-08-29,2025-09-04,FY2025/26,,,61.41,,,8451,0,5921,112,,FALSE,Summer Outlook published today — projects no loadshedding through March 2026
+2025-10-31,2025-10-24,2025-10-30,FY2025/26,65.9,monthly_mtd,,21.78,12.01,8768,0.005,6074,168,,FALSE,Koeberg Unit 1 returned to grid after major maintenance
+2025-11-07,2025-10-31,2025-11-06,FY2025/26,71.5,monthly_mtd,63.29,16.57,11.65,,0.0,6077,175,,FALSE,Weekly UCLF dropped below 20% for first time
+2025-11-14,2025-11-07,2025-11-13,FY2025/26,70.75,monthly_mtd,63.48,18.83,10.92,9115,4.8,6079,182,,FALSE,182 consecutive days without loadshedding
+2025-11-21,2025-11-14,2025-11-20,FY2025/26,,,,17.54,13.31,,0.0,6079,189,,FALSE,No OCGTs used this week
+2025-11-28,2025-11-21,2025-11-27,FY2025/26,,,,20.34,,9711,105.5,6185,196,,FALSE,Diesel used to replenish emergency reserves
+2025-12-05,2025-11-28,2025-12-04,FY2025/26,68.29,monthly_mtd,63.7,22.56,,10785,8.24,6193,203,39,FALSE,203 consecutive days; full November EAF 68.29% — best month in years
+2025-12-12,2025-12-05,2025-12-11,FY2025/26,66.52,monthly_mtd,63.8,21.82,,10505,0.3,6191,210,39,FALSE,Festive season preparation; 7118 MW on cold reserve
+2025-12-19,2025-12-12,2025-12-18,FY2025/26,66.12,monthly_mtd,63.85,22.46,11.84,10701,0.0,6232,217,39,FALSE,
+2025-12-26,2025-12-19,2025-12-25,FY2025/26,67.55,monthly_mtd,64.04,16.0,10.75,8493,0.0,6232,224,42,TRUE,⚠ DISPUTED: Chris Yelland flagged atypical spike — weekly EAF reportedly jumped to >74% and UCLF plunged to ~16%. Eskom chairman Mteto Nyati defended data but did not identify which units returned online. Yelland: 'One cannot but suspect that activities are being done or not done in order to present a high EAF by end of 2025.'
+2026-01-02,2025-12-26,2026-01-01,FY2025/26,69.14,monthly_mtd,64.35,,,,0.0,6232,231,49,FALSE,Full December EAF 69.14% — 12.57% YoY improvement; 13675 MW on cold reserve (holiday low demand)
+2026-01-09,2026-01-02,2026-01-08,FY2025/26,,,64.55,16.02,9.32,7705,0.0,6230,238,55,FALSE,Third consecutive week zero diesel; unplanned outages at 7705 MW
+2026-01-16,2026-01-09,2026-01-15,FY2025/26,,,64.79,17.19,13.89,8252,0.0,6230,245,,FALSE,Fourth consecutive week zero diesel
+2026-01-23,2026-01-16,2026-01-22,FY2025/26,,,64.79,16.63,12.64,8067,0.0,6231,252,,FALSE,
+2026-01-30,2026-01-23,2026-01-29,FY2025/26,,,,,10.46,8362,1.61,6231,259,,FALSE,First diesel use after 5 consecutive zero weeks — R1.61m for grid optimisation
+2026-02-06,2026-01-30,2026-02-05,FY2025/26,,,,,10.03,9177,0.0,6231,266,,FALSE,Diesel spend now R4.81bn lower than same point last year
+2026-02-27,2026-02-20,2026-02-26,FY2025/26,,,65.24,17.75,10.7,8520,72.64,6318,287,72,FALSE,Diesel spend rose due to IPP take-or-pay contractual obligations — not operational need
+2026-03-27,2026-03-20,2026-03-26,FY2025/26,,,65.37,23.76,11.16,11265,2.78,6937,315,83,FALSE,315 days; unplanned outages ticked up but 61.22% less diesel YoY
+2026-04-03,2026-03-27,2026-04-02,FY2025/26,,,65.35,,,, 2.27,6400,322,,FALSE,FY2025/26 close: EAF 65.35% full year; diesel R6.4bn vs R17bn prior year (-62.46%); 361 uninterrupted days in FY
+2026-04-24,2026-04-17,2026-04-23,FY2026/27,60.47,ytd,60.47,,,,, 250,343,,FALSE,New FY2026/27 starts; elevated planned maintenance (7847 MW avg) weighing on early EAF
+2026-05-29,2026-05-22,2026-05-28,FY2026/27,62.59,ytd,62.59,,14.34,,,559,376,,FALSE,Winter demand rising; diesel 83.68% lower YoY; 651828 households removed from load reduction
+2026-06-05,2026-05-29,2026-06-04,FY2026/27,63.05,ytd,63.05,,14.21,9252,,566,385,,FALSE,Diesel 84.52% lower YoY; 714513 households restored; full elimination in Northern and Western Cape achieved
+2026-06-19,2026-06-12,2026-06-18,FY2026/27,63.54,ytd,63.54,,13.82,,,640,399,,FALSE,399 consecutive days; diesel 85.82% lower YoY; 886717 households restored (52% of target)

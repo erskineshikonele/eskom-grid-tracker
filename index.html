@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eskom Grid Recovery Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    /* ─── Design tokens ─────────────────────────────────────────
+       Palette:  midnight-ink (#0d1117), steel-blue (#1c2b3a),
+                 pulse-amber (#e8a020), current-green (#22c55e),
+                 danger-red (#ef4444), muted-slate (#6b7280),
+                 surface (#131c27), border (#1e3048)
+       Type:     'IBM Plex Mono' for data / counters (mono-data);
+                 'Inter' for body; 'Syne' for display headings
+       Signature: a live "pulse" ring on the streak counter that
+                 gently radiates while grid is stable — stops and
+                 turns red if streak is broken
+    ─────────────────────────────────────────────────────────── */
+
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600&family=Syne:wght@700;800&display=swap');
+
+    :root {
+      --ink:     #0d1117;
+      --steel:   #1c2b3a;
+      --surface: #131c27;
+      --border:  #1e3048;
+      --amber:   #e8a020;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --muted:   #6b7280;
+      --dim:     #94a3b8;
+      --white:   #f1f5f9;
+      --mono:    'IBM Plex Mono', monospace;
+      --body:    'Inter', sans-serif;
+      --display: 'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--ink);
+      color: var(--white);
+      font-family: var(--body);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─────────────────────────────────────── */
+    .site-header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 0 16px;
+      background: var(--surface);
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .site-title {
+      font-family: var(--display);
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: var(--amber);
+      text-transform: uppercase;
+    }
+    .site-subtitle {
+      font-size: 0.78rem;
+      color: var(--dim);
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 100px;
+      background: rgba(34,197,94,0.12);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.3);
+      letter-spacing: 0.05em;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    /* ─── Main layout ─────────────────────────────────── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* ─── Streak hero ──────────────────────────────────── */
+    .streak-hero {
+      text-align: center;
+      padding: 48px 0 40px;
+      position: relative;
+    }
+    .streak-label {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .streak-ring-wrap {
+      display: inline-block;
+      position: relative;
+    }
+    .streak-number {
+      font-family: var(--display);
+      font-size: clamp(5rem, 16vw, 9rem);
+      font-weight: 800;
+      color: var(--amber);
+      line-height: 1;
+      position: relative;
+      z-index: 2;
+      transition: color 0.5s;
+    }
+    /* pulse ring — the signature element */
+    .streak-ring {
+      position: absolute;
+      inset: -24px;
+      border-radius: 50%;
+      border: 2px solid var(--amber);
+      opacity: 0;
+      animation: pulse-ring 3s ease-out infinite;
+    }
+    .streak-ring:nth-child(2) { animation-delay: 1s; }
+    @keyframes pulse-ring {
+      0%   { transform: scale(0.85); opacity: 0.5; }
+      100% { transform: scale(1.2);  opacity: 0; }
+    }
+    .streak-ring.broken { animation: none; border-color: var(--red); opacity: 0.3; }
+    .streak-unit {
+      font-family: var(--display);
+      font-size: clamp(1.1rem, 3vw, 1.5rem);
+      font-weight: 700;
+      color: var(--dim);
+      margin-top: 6px;
+    }
+    .streak-since {
+      font-family: var(--mono);
+      font-size: 0.73rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    /* ─── Divider ─────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 0 32px;
+    }
+
+    /* ─── KPI cards ───────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 20px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--amber);
+      border-radius: 10px 10px 0 0;
+    }
+    .kpi-card.good::before  { background: var(--green); }
+    .kpi-card.warn::before  { background: var(--amber); }
+    .kpi-card.alert::before { background: var(--red); }
+    .kpi-label {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-family: var(--mono);
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--white);
+      line-height: 1;
+    }
+    .kpi-value.good  { color: var(--green); }
+    .kpi-value.warn  { color: var(--amber); }
+    .kpi-value.alert { color: var(--red); }
+    .kpi-meta {
+      font-size: 0.74rem;
+      color: var(--dim);
+      margin-top: 8px;
+    }
+    .kpi-delta {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .delta-up   { background: rgba(34,197,94,0.12);  color: var(--green); }
+    .delta-down { background: rgba(239,68,68,0.12);  color: var(--red); }
+
+    /* ─── Charts ──────────────────────────────────────── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    @media (max-width: 720px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+    .chart-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .chart-title {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .chart-wrap { position: relative; height: 200px; }
+
+    /* ─── Disputed badge ──────────────────────────────── */
+    .disputed-banner {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 32px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .disputed-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .disputed-body { font-size: 0.82rem; color: var(--dim); line-height: 1.6; }
+    .disputed-body strong { color: var(--red); font-weight: 600; }
+
+    /* ─── Data table ──────────────────────────────────── */
+    .section-heading {
+      font-family: var(--display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .table-wrap { overflow-x: auto; margin-bottom: 40px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 0.73rem;
+    }
+    thead th {
+      text-align: left;
+      padding: 9px 12px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(30,48,72,0.6);
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody td {
+      padding: 9px 12px;
+      color: var(--dim);
+      white-space: nowrap;
+    }
+    tbody td.hl { color: var(--white); }
+    tbody td.good { color: var(--green); }
+    tbody td.warn { color: var(--amber); }
+    tbody td.alert { color: var(--red); }
+    .disputed-row td { background: rgba(239,68,68,0.05); }
+    .disputed-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: rgba(239,68,68,0.15);
+      color: var(--red);
+      border: 1px solid rgba(239,68,68,0.3);
+      margin-left: 5px;
+      cursor: help;
+    }
+
+    /* ─── Footer ──────────────────────────────────────── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 24px;
+      text-align: center;
+      font-size: 0.73rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .site-footer a { color: var(--dim); text-decoration: none; }
+    .site-footer a:hover { color: var(--amber); }
+
+    /* ─── Loading ─────────────────────────────────────── */
+    .loading {
+      text-align: center;
+      padding: 80px 24px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border);
+      border-top-color: var(--amber);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 480px) {
+      .streak-number { font-size: 5rem; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div>
+        <div class="site-title">⚡ Eskom Grid Recovery Tracker</div>
+        <div class="site-subtitle">South Africa's electricity turnaround — weekly data from official Eskom press releases</div>
+      </div>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="gridStatus">GRID STABLE</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="app">
+    <div class="loading">
+      <div class="spinner"></div>
+      LOADING GRID DATA…
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    Data sourced from
+    <a href="https://www.eskom.co.za/power-system-status/" target="_blank" rel="noopener">eskom.co.za</a>
+    weekly press releases.
+    Updated automatically every Friday via GitHub Actions.
+    Built by <a href="https://www.linkedin.com/in/erskine-shikonele" target="_blank" rel="noopener">Erskine Shikonele</a>.
+  </footer>
+
+  <script>
+  // ─── Load CSV via PapaParse ───────────────────────────
+  const CSV_URL = "./data/eskom_grid_metrics.csv";
+
+  Papa.parse(CSV_URL, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: ({ data }) => render(data),
+    error: (err) => {
+      document.getElementById("app").innerHTML =
+        `<div class="loading" style="color:#ef4444">
+           Failed to load data: ${err.message}<br>
+           <small>Ensure eskom_grid_metrics.csv is in ./data/</small>
+         </div>`;
+    }
+  });
+
+  // ─── Helpers ─────────────────────────────────────────
+  const f   = (v, d=1)  => v != null && v !== "" ? (+v).toFixed(d) : "—";
+  const fMW = v => v && v !== "" ? (+v).toLocaleString("en-ZA", {maximumFractionDigits:0}) + " MW" : "—";
+  const fM  = (v, d=0)  => v && v !== "" ? "R " + (+v).toLocaleString("en-ZA", {maximumFractionDigits:d}) + "m" : "—";
+  const fDate = s => {
+    if (!s) return "—";
+    const d = new Date(s);
+    return d.toLocaleDateString("en-ZA", { day:"numeric", month:"short", year:"numeric" });
+  };
+
+  function pct(v) { return v !== "" ? +v : null; }
+
+  // ─── Main render ─────────────────────────────────────
+  function render(rows) {
+    // Sort ascending by report_date
+    rows.sort((a,b) => a.report_date.localeCompare(b.report_date));
+
+    const latest  = rows[rows.length - 1];
+    const prev    = rows[rows.length - 2] || {};
+    const streak  = +latest.consec_days_no_ls || 0;
+    const hasStreak = streak > 0;
+
+    // Build full page
+    document.getElementById("app").innerHTML = `
+      ${heroHTML(latest, streak, hasStreak)}
+      <hr class="divider">
+      ${disputedBannerHTML(rows)}
+      ${kpiHTML(latest, prev)}
+      <div class="charts-grid">
+        <div class="chart-panel">
+          <div class="chart-title">Energy Availability Factor — YTD %</div>
+          <div class="chart-wrap"><canvas id="eafChart"></canvas></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">Unplanned Outages — weekly avg MW</div>
+          <div class="chart-wrap"><canvas id="outageChart"></canvas></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">Weekly UCLF %</div>
+          <div class="chart-wrap"><canvas id="uclfChart"></canvas></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">YTD Diesel Expenditure — R millions</div>
+          <div class="chart-wrap"><canvas id="dieselChart"></canvas></div>
+        </div>
+      </div>
+      <h2 class="section-heading">Full Dataset</h2>
+      ${tableHTML(rows)}
+    `;
+
+    buildCharts(rows);
+  }
+
+  // ─── Hero section ─────────────────────────────────────
+  function heroHTML(latest, streak, active) {
+    const since = "16 May 2025";
+    return `
+      <div class="streak-hero">
+        <div class="streak-label">Consecutive days without load shedding</div>
+        <div class="streak-ring-wrap">
+          <div class="streak-ring ${active ? '' : 'broken'}"></div>
+          <div class="streak-ring ${active ? '' : 'broken'}"></div>
+          <div class="streak-number ${active ? '' : 'alert'}" id="streakNum">${streak > 0 ? streak.toLocaleString() : "—"}</div>
+        </div>
+        <div class="streak-unit">days and counting</div>
+        <div class="streak-since">No load shedding since ${since} · Last updated ${fDate(latest.report_date)}</div>
+      </div>
+    `;
+  }
+
+  // ─── Disputed data banner ─────────────────────────────
+  function disputedBannerHTML(rows) {
+    const disputed = rows.filter(r => r.disputed === "TRUE");
+    if (!disputed.length) return "";
+    return `
+      <div class="disputed-banner">
+        <div class="disputed-icon">⚠️</div>
+        <div class="disputed-body">
+          <strong>Data integrity note:</strong>
+          Week 52, 2025 (19–25 Dec) EAF data is flagged as disputed.
+          Energy analyst <strong>Chris Yelland</strong> publicly questioned an atypical spike —
+          the weekly EAF reportedly jumped to over 74% while unplanned outages plunged to ~16%,
+          a ~34% year-on-year improvement that Yelland described as statistically anomalous.
+          Eskom chairman <strong>Mteto Nyati</strong> defended the figures but did not identify which
+          specific units returned online to cause the jump.
+          Affected data points are marked <span class="disputed-tag">⚠ DISPUTED</span> in the table below.
+        </div>
+      </div>
+    `;
+  }
+
+  // ─── KPI cards ────────────────────────────────────────
+  function kpiHTML(latest, prev) {
+    const eafYtd = pct(latest.eaf_ytd_pct);
+    const eafPrev = pct(prev.eaf_ytd_pct);
+    const eafDelta = eafYtd != null && eafPrev != null ? (eafYtd - eafPrev).toFixed(2) : null;
+    const eafClass = eafYtd >= 65 ? "good" : eafYtd >= 60 ? "warn" : "alert";
+
+    const uclf = pct(latest.uclf_week_pct);
+    const uclfPrev = pct(prev.uclf_week_pct);
+    const uclfDelta = uclf != null && uclfPrev != null ? (uclf - uclfPrev).toFixed(2) : null;
+    const uclfClass = uclf < 20 ? "good" : uclf < 25 ? "warn" : "alert";
+
+    const outMW = latest.unplanned_mw_avg;
+    const dieselW = latest.diesel_weekly_mzar;
+    const dieselYtd = latest.diesel_ytd_mzar;
+
+    return `
+      <div class="kpi-grid">
+        <div class="kpi-card ${eafClass}">
+          <div class="kpi-label">EAF — Year to Date</div>
+          <div class="kpi-value ${eafClass}">${f(eafYtd)}%</div>
+          ${eafDelta != null ? `<span class="kpi-delta ${+eafDelta >= 0 ? 'delta-up' : 'delta-down'}">
+            ${+eafDelta >= 0 ? '▲' : '▼'} ${Math.abs(eafDelta)}% vs prev
+          </span>` : ''}
+          <div class="kpi-meta">Target: 70% · ${eafYtd >= 70 ? '✓ above target' : eafYtd >= 65 ? 'near target' : 'below target'}</div>
+        </div>
+
+        <div class="kpi-card ${uclfClass}">
+          <div class="kpi-label">UCLF — Latest Week</div>
+          <div class="kpi-value ${uclfClass}">${uclf != null ? f(uclf) + '%' : '—'}</div>
+          ${uclfDelta != null ? `<span class="kpi-delta ${+uclfDelta <= 0 ? 'delta-up' : 'delta-down'}">
+            ${+uclfDelta <= 0 ? '▼' : '▲'} ${Math.abs(uclfDelta)}% vs prev
+          </span>` : ''}
+          <div class="kpi-meta">Unplanned capacity loss · lower is better</div>
+        </div>
+
+        <div class="kpi-card warn">
+          <div class="kpi-label">Unplanned Outages</div>
+          <div class="kpi-value warn">${fMW(outMW)}</div>
+          <div class="kpi-meta">Weekly average · structurally stable &lt; 10 000 MW</div>
+        </div>
+
+        <div class="kpi-card good">
+          <div class="kpi-label">Diesel Spend — This Week</div>
+          <div class="kpi-value good">${fM(dieselW, 1)}</div>
+          <div class="kpi-meta">YTD: ${fM(dieselYtd)} · 85%+ less than prior year</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ─── Charts ───────────────────────────────────────────
+  const CHART_DEFAULTS = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#1c2b3a",
+        titleColor: "#e8a020",
+        bodyColor: "#94a3b8",
+        borderColor: "#1e3048",
+        borderWidth: 1,
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: "#6b7280", font: { family: "'IBM Plex Mono'", size: 10 }, maxTicksLimit: 8 },
+        grid:  { color: "rgba(30,48,72,0.5)" }
+      },
+      y: {
+        ticks: { color: "#6b7280", font: { family: "'IBM Plex Mono'", size: 10 } },
+        grid:  { color: "rgba(30,48,72,0.5)" }
+      }
+    }
+  };
+
+  function buildCharts(rows) {
+    const labels = rows.map(r => r.report_date.slice(5));  // MM-DD
+
+    // EAF YTD
+    new Chart(document.getElementById("eafChart"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          data: rows.map(r => r.eaf_ytd_pct || null),
+          borderColor: "#22c55e",
+          backgroundColor: "rgba(34,197,94,0.08)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: rows.map(r => r.disputed === "TRUE" ? 6 : 3),
+          pointBackgroundColor: rows.map(r => r.disputed === "TRUE" ? "#ef4444" : "#22c55e"),
+          pointBorderColor: rows.map(r => r.disputed === "TRUE" ? "#ef4444" : "#22c55e"),
+        }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        scales: {
+          ...CHART_DEFAULTS.scales,
+          y: { ...CHART_DEFAULTS.scales.y, min: 55, max: 70, ticks: { ...CHART_DEFAULTS.scales.y.ticks, callback: v => v + "%" } }
+        },
+        plugins: {
+          ...CHART_DEFAULTS.plugins,
+          annotation: undefined
+        }
+      }
+    });
+
+    // Unplanned outages MW
+    new Chart(document.getElementById("outageChart"), {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          data: rows.map(r => r.unplanned_mw_avg || null),
+          backgroundColor: rows.map(r => {
+            const v = +r.unplanned_mw_avg;
+            if (r.disputed === "TRUE") return "rgba(239,68,68,0.6)";
+            return v < 9000 ? "rgba(34,197,94,0.5)" : v < 12000 ? "rgba(232,160,32,0.5)" : "rgba(239,68,68,0.5)";
+          }),
+          borderRadius: 3,
+        }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        scales: {
+          ...CHART_DEFAULTS.scales,
+          y: { ...CHART_DEFAULTS.scales.y, ticks: { ...CHART_DEFAULTS.scales.y.ticks, callback: v => (v/1000).toFixed(0) + "k" } }
+        }
+      }
+    });
+
+    // UCLF
+    new Chart(document.getElementById("uclfChart"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          data: rows.map(r => r.uclf_week_pct || null),
+          borderColor: "#e8a020",
+          backgroundColor: "rgba(232,160,32,0.06)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: "#e8a020",
+        }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        scales: {
+          ...CHART_DEFAULTS.scales,
+          y: { ...CHART_DEFAULTS.scales.y, ticks: { ...CHART_DEFAULTS.scales.y.ticks, callback: v => v + "%" } }
+        }
+      }
+    });
+
+    // Diesel YTD
+    new Chart(document.getElementById("dieselChart"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          data: rows.map(r => r.diesel_ytd_mzar || null),
+          borderColor: "#6b7280",
+          backgroundColor: "rgba(107,114,128,0.06)",
+          fill: true,
+          tension: 0.2,
+          pointRadius: 2,
+          borderDash: [4,3],
+          pointBackgroundColor: "#6b7280",
+        }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        scales: {
+          ...CHART_DEFAULTS.scales,
+          y: {
+            ...CHART_DEFAULTS.scales.y,
+            ticks: { ...CHART_DEFAULTS.scales.y.ticks, callback: v => "R" + (v >= 1000 ? (v/1000).toFixed(1) + "bn" : v + "m") }
+          }
+        }
+      }
+    });
+  }
+
+  // ─── Data table ───────────────────────────────────────
+  function tableHTML(rows) {
+    const reversed = [...rows].reverse();
+    const ths = `
+      <tr>
+        <th>Report Date</th>
+        <th>EAF YTD %</th>
+        <th>UCLF Week %</th>
+        <th>PCLF Week %</th>
+        <th>Unplanned MW</th>
+        <th>Diesel (week)</th>
+        <th>Streak Days</th>
+        <th>FY</th>
+        <th>Notes</th>
+      </tr>
+    `;
+
+    const trs = reversed.map(r => {
+      const isDisputed = r.disputed === "TRUE";
+      const eafV = pct(r.eaf_ytd_pct);
+      const eafCls = eafV >= 65 ? "good" : eafV >= 60 ? "warn" : "";
+      const uclfV = pct(r.uclf_week_pct);
+      const uclfCls = uclfV !== null ? (uclfV < 20 ? "good" : uclfV < 25 ? "warn" : "alert") : "";
+
+      return `
+        <tr class="${isDisputed ? 'disputed-row' : ''}">
+          <td class="hl">${fDate(r.report_date)}${isDisputed ? `<span class="disputed-tag" title="${r.notes}">⚠ DISPUTED</span>` : ''}</td>
+          <td class="${eafCls}">${r.eaf_ytd_pct ? f(r.eaf_ytd_pct) + "%" : "—"}</td>
+          <td class="${uclfCls}">${r.uclf_week_pct ? f(r.uclf_week_pct) + "%" : "—"}</td>
+          <td>${r.pclf_week_pct ? f(r.pclf_week_pct) + "%" : "—"}</td>
+          <td>${fMW(r.unplanned_mw_avg)}</td>
+          <td>${r.diesel_weekly_mzar !== "" && r.diesel_weekly_mzar !== undefined ? fM(r.diesel_weekly_mzar, 1) : "—"}</td>
+          <td class="${r.consec_days_no_ls > 300 ? 'good' : ''}">${r.consec_days_no_ls || "—"}</td>
+          <td style="color:var(--muted)">${r.financial_year}</td>
+          <td style="max-width:300px;white-space:normal;font-size:0.68rem;color:var(--muted)">${r.notes ? r.notes.slice(0, 120) + (r.notes.length > 120 ? "…" : "") : ""}</td>
+        </tr>
+      `;
+    }).join("");
+
+    return `<div class="table-wrap"><table><thead>${ths}</thead><tbody>${trs}</tbody></table></div>`;
+  }
+  </script>
+</body>
+</html>

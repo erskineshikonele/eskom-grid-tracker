@@ -1,0 +1,36 @@
+name: Scrape Eskom Weekly Update
+
+on:
+  schedule:
+    # 16:00 UTC = 18:00 SAST — Eskom publishes Friday afternoon
+    - cron: "0 16 * * 5"
+  workflow_dispatch:   # allow manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run scraper
+        run: python scripts/scrape_eskom.py
+
+      - name: Commit and push updated CSV
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/eskom_grid_metrics.csv
+          git diff --cached --quiet && echo "No changes to commit." || \
+            git commit -m "data: weekly Eskom grid metrics update $(date +%Y-%m-%d)" && git push
