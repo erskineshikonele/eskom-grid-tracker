@@ -373,6 +373,96 @@
       .kpi-grid { grid-template-columns: 1fr 1fr; }
     }
 
+
+    /* ─── Subscriber form ─────────────────────────────── */
+    .subscribe-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px 28px 24px;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .subscribe-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--amber), var(--green));
+      border-radius: 10px 10px 0 0;
+    }
+    .subscribe-heading {
+      font-family: var(--display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 6px;
+    }
+    .subscribe-sub {
+      font-size: 0.8rem;
+      color: var(--dim);
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    .subscribe-form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .subscribe-input {
+      flex: 1;
+      min-width: 220px;
+      background: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: var(--white);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .subscribe-input:focus {
+      border-color: var(--amber);
+    }
+    .subscribe-input::placeholder { color: var(--muted); }
+    .subscribe-btn {
+      background: var(--amber);
+      color: var(--ink);
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .subscribe-btn:hover { opacity: 0.85; }
+    .subscribe-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .subscribe-msg {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+    .subscribe-msg.success { color: var(--green); }
+    .subscribe-msg.error   { color: var(--red); }
+    .subscribe-conditions {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+    .subscribe-conditions span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-right: 16px;
+    }
+
     /* ─── iOS install banner ──────────────────────────── */
     .ios-banner {
       display: none;
@@ -429,6 +519,32 @@
       <div class="spinner"></div>
       LOADING GRID DATA…
     </div>
+
+      <div class="subscribe-section">
+        <div class="subscribe-heading">🔔 Get Grid Alerts</div>
+        <div class="subscribe-sub">
+          Email me if load shedding returns or EAF drops significantly — the two leading warning signals.
+        </div>
+        <div class="subscribe-form">
+          <input
+            class="subscribe-input"
+            type="email"
+            id="subEmail"
+            placeholder="your@email.com"
+            autocomplete="email"
+          >
+          <button class="subscribe-btn" id="subBtn" onclick="handleSubscribe()">
+            Subscribe
+          </button>
+        </div>
+        <div class="subscribe-msg" id="subMsg"></div>
+        <div class="subscribe-conditions">
+          <span>📉 EAF drops 2%+ week-on-week</span>
+          <span>⚡ Load shedding streak broken</span>
+          <span>🔒 No spam, unsubscribe anytime</span>
+        </div>
+      </div>
+
   </main>
 
   <footer class="site-footer">
@@ -801,6 +917,72 @@
 
     return `<div class="table-wrap"><table><thead>${ths}</thead><tbody>${trs}</tbody></table></div>`;
   }
+  </script>
+
+
+  <script>
+    const SB_URL = "https://jgpcdnttmmzhofmbhfgo.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpncGNkbnR0bW16aG9mbWJoZmdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDkyNjYsImV4cCI6MjA5NzcyNTI2Nn0.6k_qWkAOiMgyFREpNHRjdBi8KxUtZ0nHl3HCmQhy9jY";
+
+    async function handleSubscribe() {
+      const emailEl = document.getElementById("subEmail");
+      const btnEl   = document.getElementById("subBtn");
+      const msgEl   = document.getElementById("subMsg");
+      const email   = emailEl.value.trim();
+
+      // Basic validation
+      if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+        msgEl.textContent = "Please enter a valid email address.";
+        msgEl.className = "subscribe-msg error";
+        return;
+      }
+
+      btnEl.disabled = true;
+      btnEl.textContent = "Subscribing…";
+      msgEl.textContent = "";
+      msgEl.className = "subscribe-msg";
+
+      try {
+        const res = await fetch(`${SB_URL}/rest/v1/alert_subscribers`, {
+          method: "POST",
+          headers: {
+            "apikey": SB_KEY,
+            "Authorization": `Bearer ${SB_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "resolution=ignore-duplicates",
+          },
+          body: JSON.stringify({ email, active: true }),
+        });
+
+        if (res.ok || res.status === 201) {
+          msgEl.textContent = "✓ Subscribed. You'll be alerted if the grid situation changes.";
+          msgEl.className = "subscribe-msg success";
+          emailEl.value = "";
+        } else if (res.status === 409) {
+          msgEl.textContent = "✓ You're already subscribed.";
+          msgEl.className = "subscribe-msg success";
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (err) {
+        msgEl.textContent = "Something went wrong. Please try again.";
+        msgEl.className = "subscribe-msg error";
+        console.error("Subscribe error:", err);
+      } finally {
+        btnEl.disabled = false;
+        btnEl.textContent = "Subscribe";
+      }
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("subEmail");
+      if (input) {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") handleSubscribe();
+        });
+      }
+    });
   </script>
 
   <!-- iOS install banner -->
