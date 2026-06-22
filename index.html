@@ -7,6 +7,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#e8a020">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Grid Tracker">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -951,19 +952,21 @@
             "apikey": SB_KEY,
             "Authorization": `Bearer ${SB_KEY}`,
             "Content-Type": "application/json",
-            "Prefer": "resolution=ignore-duplicates",
+            "Prefer": "return=minimal",
           },
           body: JSON.stringify({ email, active: true }),
         });
 
-        if (res.ok || res.status === 201) {
+        if (res.status === 201 || res.status === 200) {
           msgEl.textContent = "✓ Subscribed. You'll be alerted if the grid situation changes.";
           msgEl.className = "subscribe-msg success";
           emailEl.value = "";
-        } else if (res.status === 409) {
+        } else if (res.status === 409 || res.status === 23505) {
           msgEl.textContent = "✓ You're already subscribed.";
           msgEl.className = "subscribe-msg success";
         } else {
+          const body = await res.text();
+          console.error("Supabase error:", res.status, body);
           throw new Error(`HTTP ${res.status}`);
         }
       } catch (err) {
