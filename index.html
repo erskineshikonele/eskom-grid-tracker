@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Eskom Grid Recovery Tracker</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     /* ─── Design tokens ─────────────────────────────────────────
@@ -400,22 +399,48 @@
   </footer>
 
   <script>
-  // ─── Load CSV via PapaParse ───────────────────────────
-  const CSV_URL = "./data/eskom_grid_metrics.csv";
+  // ─── Load data from Supabase REST API ────────────────
+  const SUPABASE_URL = "https://jgpcdnttmmzhofmbhfgo.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpncGNkbnR0bW16aG9mbWJoZmdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDkyNjYsImV4cCI6MjA5NzcyNTI2Nn0.6k_qWkAOiMgyFREpNHRjdBi8KxUtZ0nHl3HCmQhy9jY";
 
-  Papa.parse(CSV_URL, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    complete: ({ data }) => render(data),
-    error: (err) => {
+  async function loadData() {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/eskom_grid_metrics?select=*&order=report_date.asc`,
+        {
+          headers: {
+            "apikey": SUPABASE_KEY,
+            "Authorization": `Bearer ${SUPABASE_KEY}`,
+          }
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Normalise fields to match previous string-based render logic
+      const rows = data.map(r => ({
+        ...r,
+        disputed: r.disputed ? "TRUE" : "FALSE",
+        eaf_ytd_pct:        r.eaf_ytd_pct        ?? "",
+        uclf_week_pct:      r.uclf_week_pct      ?? "",
+        pclf_week_pct:      r.pclf_week_pct      ?? "",
+        unplanned_mw_avg:   r.unplanned_mw_avg   ?? "",
+        diesel_weekly_mzar: r.diesel_weekly_mzar ?? "",
+        diesel_ytd_mzar:    r.diesel_ytd_mzar    ?? "",
+        consec_days_no_ls:  r.consec_days_no_ls  ?? "",
+        eaf70_count_ytd:    r.eaf70_count_ytd    ?? "",
+        notes:              r.notes              ?? "",
+      }));
+      render(rows);
+    } catch (err) {
       document.getElementById("app").innerHTML =
         `<div class="loading" style="color:#ef4444">
            Failed to load data: ${err.message}<br>
-           <small>Ensure eskom_grid_metrics.csv is in ./data/</small>
+           <small>Check Supabase connection or RLS policies.</small>
          </div>`;
     }
-  });
+  }
+
+  loadData();
 
   // ─── Helpers ─────────────────────────────────────────
   const f   = (v, d=1)  => v != null && v !== "" ? (+v).toFixed(d) : "—";
