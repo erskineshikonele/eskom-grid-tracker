@@ -37,3 +37,18 @@ jobs:
           git add data/eskom_grid_metrics.csv
           git diff --cached --quiet && echo "No changes to commit." || \
             git commit -m "data: weekly Eskom grid metrics $(date +%Y-%m-%d)" && git push
+
+      - name: Trigger alert Edge Function
+        run: |
+          echo "Invoking send-grid-alert Edge Function..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            "https://jgpcdnttmmzhofmbhfgo.supabase.co/functions/v1/send-grid-alert" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json")
+          echo "Edge Function response: $RESPONSE"
+          if [ "$RESPONSE" -ge 200 ] && [ "$RESPONSE" -lt 300 ]; then
+            echo "Alert check completed successfully."
+          else
+            echo "Alert function returned $RESPONSE — check Edge Function logs."
+          fi
