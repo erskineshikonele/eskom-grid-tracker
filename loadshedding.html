@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Area Checker — Eskom Grid Recovery Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#e8a020">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Area Checker">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600&family=Syne:wght@700;800&display=swap');
+
+    :root {
+      --ink:     #0d1117;
+      --steel:   #1c2b3a;
+      --surface: #131c27;
+      --border:  #1e3048;
+      --amber:   #e8a020;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --orange:  #f97316;
+      --muted:   #6b7280;
+      --dim:     #94a3b8;
+      --white:   #f1f5f9;
+      --mono:    'IBM Plex Mono', monospace;
+      --body:    'Inter', sans-serif;
+      --display: 'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--ink);
+      color: var(--white);
+      font-family: var(--body);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─────────────────────────────────────── */
+    .site-header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 0 16px;
+      background: var(--surface);
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .site-title {
+      font-family: var(--display);
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: var(--amber);
+      text-transform: uppercase;
+    }
+    .site-subtitle {
+      font-size: 0.78rem;
+      color: var(--dim);
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 16px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+    }
+    .nav-links a {
+      color: var(--dim);
+      text-decoration: none;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .nav-links a:hover { color: var(--amber); border-color: var(--amber); }
+    .nav-links a.active { color: var(--amber); border-color: var(--amber); background: rgba(232,160,32,0.08); }
+
+    /* ─── National status banner ─────────────────────── */
+    .national-banner {
+      max-width: 1100px;
+      margin: 28px auto 0;
+      padding: 0 24px;
+    }
+    .stage-card {
+      border-radius: 12px;
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      flex-wrap: wrap;
+    }
+    .stage-badge {
+      font-family: var(--display);
+      font-size: 3rem;
+      font-weight: 800;
+      line-height: 1;
+      min-width: 80px;
+      text-align: center;
+    }
+    .stage-badge.no-ls  { color: var(--green); }
+    .stage-badge.low    { color: var(--amber); }
+    .stage-badge.medium { color: var(--orange); }
+    .stage-badge.high   { color: var(--red); }
+    .stage-info { flex: 1; }
+    .stage-label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .stage-title {
+      font-family: var(--display);
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .stage-title.no-ls  { color: var(--green); }
+    .stage-title.low    { color: var(--amber); }
+    .stage-title.medium { color: var(--orange); }
+    .stage-title.high   { color: var(--red); }
+    .stage-meta {
+      font-size: 0.8rem;
+      color: var(--dim);
+      margin-top: 4px;
+      font-family: var(--mono);
+    }
+    .stage-streak {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--green);
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.2);
+      border-radius: 6px;
+      padding: 8px 14px;
+      white-space: nowrap;
+    }
+
+    /* ─── Main ────────────────────────────────────────── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 24px 64px;
+    }
+
+    /* ─── Search ──────────────────────────────────────── */
+    .search-section {
+      margin-bottom: 28px;
+    }
+    .search-heading {
+      font-family: var(--display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .search-sub {
+      font-size: 0.8rem;
+      color: var(--dim);
+      margin-bottom: 14px;
+    }
+    .search-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 240px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--white);
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--amber); }
+    .search-input::placeholder { color: var(--muted); }
+    .search-btn {
+      background: var(--amber);
+      color: var(--ink);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .search-btn:hover { opacity: 0.85; }
+    .search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ─── Results list ────────────────────────────────── */
+    .results-list {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .result-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .result-item:hover { border-color: var(--amber); background: rgba(232,160,32,0.04); }
+    .result-name {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--white);
+      font-weight: 600;
+    }
+    .result-region {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .result-arrow {
+      color: var(--amber);
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    /* ─── Area schedule ───────────────────────────────── */
+    .area-panel {
+      display: none;
+    }
+    .area-panel.visible { display: block; }
+
+    .area-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .area-name {
+      font-family: var(--display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+    .area-region {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .back-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--dim);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .back-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+    /* current status for area */
+    .area-status-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .area-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .area-stat-label {
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .area-stat-value {
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+    .area-stat-value.good   { color: var(--green); }
+    .area-stat-value.warn   { color: var(--amber); }
+    .area-stat-value.alert  { color: var(--red); }
+
+    /* schedule days */
+    .schedule-heading {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .schedule-days {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .schedule-day {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .schedule-day.has-events { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.04); }
+    .schedule-day.today { border-color: var(--amber); }
+    .day-label {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--white);
+      min-width: 80px;
+    }
+    .day-label .today-tag {
+      display: inline-block;
+      font-size: 0.6rem;
+      background: var(--amber);
+      color: var(--ink);
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+    .day-slots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      flex: 1;
+    }
+    .time-slot {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      background: rgba(239,68,68,0.15);
+      color: var(--red);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 4px;
+      padding: 3px 8px;
+    }
+    .time-slot.active {
+      background: rgba(239,68,68,0.3);
+      border-color: var(--red);
+      animation: pulse-slot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-slot {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.6; }
+    }
+    .no-events {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--green);
+    }
+
+    /* ─── Load reduction info ─────────────────────────── */
+    .load-reduction-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      font-size: 0.82rem;
+      color: var(--dim);
+      line-height: 1.7;
+    }
+    .load-reduction-card strong { color: var(--amber); }
+
+    /* ─── Loading / error states ──────────────────────── */
+    .state-msg {
+      text-align: center;
+      padding: 40px 24px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--amber);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Footer ──────────────────────────────────────── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 24px;
+      text-align: center;
+      font-size: 0.73rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .site-footer a { color: var(--dim); text-decoration: none; }
+    .site-footer a:hover { color: var(--amber); }
+
+    @media (max-width: 480px) {
+      .stage-badge { font-size: 2rem; }
+      .search-input { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div>
+        <div class="site-title">⚡ Eskom Grid Recovery Tracker</div>
+        <div class="site-subtitle">Load shedding &amp; load reduction area checker</div>
+      </div>
+      <nav class="nav-links">
+        <a href="index.html">Dashboard</a>
+        <a href="loadshedding.html" class="active">Area Checker</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- National status banner -->
+  <div class="national-banner">
+    <div class="stage-card" id="stageCard">
+      <div class="stage-badge" id="stageBadge">—</div>
+      <div class="stage-info">
+        <div class="stage-label">National Load Shedding Status</div>
+        <div class="stage-title" id="stageTitle">Loading…</div>
+        <div class="stage-meta" id="stageMeta">Fetching current status from Eskom</div>
+      </div>
+      <div class="stage-streak" id="stageStreak">⚡ 399 days without load shedding</div>
+    </div>
+  </div>
+
+  <main>
+    <!-- Search section -->
+    <div class="search-section" id="searchSection">
+      <div class="search-heading">Find your area</div>
+      <div class="search-sub">Search by suburb, township, or city to check your load shedding schedule and load reduction status.</div>
+      <div class="search-row">
+        <input
+          class="search-input"
+          type="text"
+          id="searchInput"
+          placeholder="e.g. Soweto, Sandton, Mitchells Plain…"
+          autocomplete="off"
+        >
+        <button class="search-btn" id="searchBtn" onclick="searchAreas()">Search</button>
+      </div>
+      <div id="searchResults" class="results-list"></div>
+    </div>
+
+    <!-- Area detail panel -->
+    <div class="area-panel" id="areaPanel">
+      <div class="area-header">
+        <div>
+          <div class="area-name" id="areaName">—</div>
+          <div class="area-region" id="areaRegion">—</div>
+        </div>
+        <button class="back-btn" onclick="showSearch()">← Back to search</button>
+      </div>
+
+      <div class="load-reduction-card" id="loadReductionCard">
+        <strong>Load Reduction:</strong> As of the latest Eskom weekly report (19 Jun 2026),
+        Eskom has restored <strong>886,717 households</strong> from load reduction nationwide —
+        52% of the total target. Load reduction continues in parts of Gauteng, KwaZulu-Natal,
+        and the Eastern Cape where illegal connections and infrastructure overload persist.
+        Northern Cape and Western Cape have been fully cleared.
+      </div>
+
+      <div class="area-status-row" id="areaStatusRow"></div>
+
+      <div class="schedule-heading">Load Shedding Schedule — Next 7 Days</div>
+      <div class="schedule-days" id="scheduleDays"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    Schedule data: <a href="https://eskomsepush.gumroad.com/l/api" target="_blank">EskomSePush API</a> ·
+    Grid metrics: <a href="https://www.eskom.co.za/power-system-status/" target="_blank">Eskom</a> ·
+    Built by <a href="https://www.linkedin.com/in/erskine-shikonele" target="_blank">Erskine Shikonele</a>
+  </footer>
+
+  <script>
+    const ESP_TOKEN   = "91EFA24F-7FAD4D86-A8F696D9-B08CBE4A";
+    const ESP_BASE    = "https://developer.sepush.co.za/business/2.0";
+    const SB_URL      = "https://jgpcdnttmmzhofmbhfgo.supabase.co";
+    const SB_KEY      = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpncGNkbnR0bW16aG9mbWJoZmdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDkyNjYsImV4cCI6MjA5NzcyNTI2Nn0.6k_qWkAOiMgyFREpNHRjdBi8KxUtZ0nHl3HCmQhy9jY";
+
+    const espHeaders  = { "token": ESP_TOKEN };
+
+    // ─── Helpers ───────────────────────────────────────
+    function stageClass(stage) {
+      if (stage === 0) return "no-ls";
+      if (stage <= 2)  return "low";
+      if (stage <= 4)  return "medium";
+      return "high";
+    }
+
+    function stageText(stage) {
+      if (stage === 0) return "No Load Shedding";
+      return `Stage ${stage} Active`;
+    }
+
+    function formatTime(dt) {
+      return new Date(dt).toLocaleTimeString("en-ZA", { hour:"2-digit", minute:"2-digit", hour12: false });
+    }
+
+    function formatDayLabel(dtStr) {
+      const d = new Date(dtStr);
+      const today = new Date();
+      const isToday = d.toDateString() === today.toDateString();
+      const label = d.toLocaleDateString("en-ZA", { weekday:"short", day:"numeric", month:"short" });
+      return { label, isToday };
+    }
+
+    function isNowBetween(start, end) {
+      const now = new Date();
+      return now >= new Date(start) && now <= new Date(end);
+    }
+
+    // ─── Load national status ──────────────────────────
+    async function loadNationalStatus() {
+      try {
+        const res  = await fetch(`${ESP_BASE}/status`, { headers: espHeaders });
+        const data = await res.json();
+        const stage = data?.status?.eskom?.stage ?? 0;
+        const cls   = stageClass(stage);
+
+        document.getElementById("stageBadge").textContent = stage === 0 ? "✓" : stage;
+        document.getElementById("stageBadge").className   = `stage-badge ${cls}`;
+        document.getElementById("stageTitle").textContent = stageText(stage);
+        document.getElementById("stageTitle").className   = `stage-title ${cls}`;
+        document.getElementById("stageMeta").textContent  =
+          stage === 0
+            ? "Grid is stable — no rotational outages currently scheduled"
+            : `Stage ${stage} means up to ${stage * 2}h of outages per day per area`;
+
+        // Load streak from Supabase
+        const sb = await fetch(
+          `${SB_URL}/rest/v1/eskom_grid_metrics?select=consec_days_no_ls&order=report_date.desc&limit=1`,
+          { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+        );
+        const rows = await sb.json();
+        const days = rows?.[0]?.consec_days_no_ls;
+        if (days) {
+          document.getElementById("stageStreak").textContent = `⚡ ${days} days without load shedding`;
+        }
+      } catch (err) {
+        document.getElementById("stageTitle").textContent = "Status unavailable";
+        document.getElementById("stageMeta").textContent  = "Could not reach EskomSePush API";
+        console.error(err);
+      }
+    }
+
+    // ─── Search areas ──────────────────────────────────
+    async function searchAreas() {
+      const query = document.getElementById("searchInput").value.trim();
+      if (!query) return;
+
+      const btn     = document.getElementById("searchBtn");
+      const results = document.getElementById("searchResults");
+      btn.disabled  = true;
+      btn.textContent = "Searching…";
+      results.innerHTML = `<div class="state-msg"><div class="spinner"></div>Searching for "${query}"…</div>`;
+
+      try {
+        const res  = await fetch(`${ESP_BASE}/areas_search?text=${encodeURIComponent(query)}`, { headers: espHeaders });
+        const data = await res.json();
+        const areas = data?.areas ?? [];
+
+        if (!areas.length) {
+          results.innerHTML = `<div class="state-msg">No areas found for "<strong>${query}</strong>". Try a broader search term.</div>`;
+          return;
+        }
+
+        results.innerHTML = areas.slice(0, 10).map(a => `
+          <div class="result-item" onclick="loadArea('${a.id}', '${encodeURIComponent(a.name)}', '${encodeURIComponent(a.region)}')">
+            <div>
+              <div class="result-name">${a.name}</div>
+              <div class="result-region">${a.region}</div>
+            </div>
+            <div class="result-arrow">→</div>
+          </div>
+        `).join("");
+      } catch (err) {
+        results.innerHTML = `<div class="state-msg" style="color:#ef4444">Search failed: ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Search";
+      }
+    }
+
+    // ─── Load area schedule ────────────────────────────
+    async function loadArea(id, nameEnc, regionEnc) {
+      const name   = decodeURIComponent(nameEnc);
+      const region = decodeURIComponent(regionEnc);
+
+      document.getElementById("areaName").textContent   = name;
+      document.getElementById("areaRegion").textContent = region;
+      document.getElementById("areaStatusRow").innerHTML = `<div class="state-msg"><div class="spinner"></div>Loading schedule…</div>`;
+      document.getElementById("scheduleDays").innerHTML  = "";
+
+      document.getElementById("searchSection").style.display = "none";
+      document.getElementById("areaPanel").classList.add("visible");
+
+      try {
+        const res  = await fetch(`${ESP_BASE}/area?id=${id}`, { headers: espHeaders });
+        const data = await res.json();
+
+        const info   = data?.info   ?? {};
+        const events = data?.events ?? [];
+        const schedule = data?.schedule?.days ?? [];
+
+        // Current area status
+        const now = new Date();
+        const activeEvent = events.find(e => new Date(e.start) <= now && new Date(e.end) >= now);
+        const nextEvent   = events.find(e => new Date(e.start) > now);
+
+        const statusHtml = `
+          <div class="area-stat">
+            <div class="area-stat-label">Current Status</div>
+            <div class="area-stat-value ${activeEvent ? 'alert' : 'good'}">
+              ${activeEvent ? "⚠ OFF" : "✓ ON"}
+            </div>
+            <div style="font-size:0.72rem;color:var(--dim);margin-top:4px;font-family:var(--mono)">
+              ${activeEvent
+                ? `Power off until ${formatTime(activeEvent.end)}`
+                : "Power currently on"}
+            </div>
+          </div>
+          <div class="area-stat">
+            <div class="area-stat-label">Next Outage</div>
+            <div class="area-stat-value ${nextEvent ? 'warn' : 'good'}">
+              ${nextEvent
+                ? new Date(nextEvent.start).toLocaleDateString("en-ZA", { weekday:"short", day:"numeric", month:"short" })
+                : "None"}
+            </div>
+            <div style="font-size:0.72rem;color:var(--dim);margin-top:4px;font-family:var(--mono)">
+              ${nextEvent
+                ? `${formatTime(nextEvent.start)} – ${formatTime(nextEvent.end)}`
+                : "No outages scheduled"}
+            </div>
+          </div>
+          <div class="area-stat">
+            <div class="area-stat-label">Area</div>
+            <div class="area-stat-value" style="font-size:0.9rem;color:var(--amber)">${name}</div>
+            <div style="font-size:0.68rem;color:var(--muted);margin-top:4px;font-family:var(--mono)">${info.region ?? region}</div>
+          </div>
+        `;
+        document.getElementById("areaStatusRow").innerHTML = statusHtml;
+
+        // Schedule days
+        if (!schedule.length && !events.length) {
+          document.getElementById("scheduleDays").innerHTML =
+            `<div class="state-msg" style="color:var(--green)">✓ No load shedding scheduled for this area.</div>`;
+          return;
+        }
+
+        // Build 7-day view from events
+        const days = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() + i);
+          const dateStr = d.toDateString();
+          const dayEvents = events.filter(e => new Date(e.start).toDateString() === dateStr);
+          days.push({ date: d, events: dayEvents });
+        }
+
+        document.getElementById("scheduleDays").innerHTML = days.map(day => {
+          const { label, isToday } = formatDayLabel(day.date);
+          const hasEvents = day.events.length > 0;
+          return `
+            <div class="schedule-day ${hasEvents ? 'has-events' : ''} ${isToday ? 'today' : ''}">
+              <div class="day-label">
+                ${label}
+                ${isToday ? '<span class="today-tag">TODAY</span>' : ''}
+              </div>
+              <div class="day-slots">
+                ${hasEvents
+                  ? day.events.map(e => {
+                      const active = isNowBetween(e.start, e.end);
+                      return `<span class="time-slot ${active ? 'active' : ''}">${formatTime(e.start)} – ${formatTime(e.end)}${active ? ' 🔴' : ''}</span>`;
+                    }).join("")
+                  : `<span class="no-events">✓ No outages</span>`
+                }
+              </div>
+            </div>
+          `;
+        }).join("");
+
+      } catch (err) {
+        document.getElementById("areaStatusRow").innerHTML =
+          `<div class="state-msg" style="color:#ef4444">Failed to load area data: ${err.message}</div>`;
+      }
+    }
+
+    // ─── Back to search ────────────────────────────────
+    function showSearch() {
+      document.getElementById("areaPanel").classList.remove("visible");
+      document.getElementById("searchSection").style.display = "block";
+    }
+
+    // ─── Enter key search ──────────────────────────────
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("searchInput").addEventListener("keydown", e => {
+        if (e.key === "Enter") searchAreas();
+      });
+      loadNationalStatus();
+    });
+  </script>
+
+</body>
+</html>
