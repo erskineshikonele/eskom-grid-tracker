@@ -517,12 +517,18 @@
   </footer>
 
   <script>
-    const ESP_TOKEN   = "91EFA24F-7FAD4D86-A8F696D9-B08CBE4A";
-    const ESP_BASE    = "https://developer.sepush.co.za/business/2.0";
-    const SB_URL      = "https://jgpcdnttmmzhofmbhfgo.supabase.co";
-    const SB_KEY      = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpncGNkbnR0bW16aG9mbWJoZmdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDkyNjYsImV4cCI6MjA5NzcyNTI2Nn0.6k_qWkAOiMgyFREpNHRjdBi8KxUtZ0nHl3HCmQhy9jY";
+    const SB_URL   = "https://jgpcdnttmmzhofmbhfgo.supabase.co";
+    const SB_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpncGNkbnR0bW16aG9mbWJoZmdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDkyNjYsImV4cCI6MjA5NzcyNTI2Nn0.6k_qWkAOiMgyFREpNHRjdBi8KxUtZ0nHl3HCmQhy9jY";
+    const PROXY    = `${SB_URL}/functions/v1/esp-proxy`;
+    const sbHeaders = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
 
-    const espHeaders  = { "token": ESP_TOKEN };
+    // Helper: call ESP via our Supabase proxy
+    async function esp(action, params = {}) {
+      const qs = new URLSearchParams({ action, ...params }).toString();
+      const res = await fetch(`${PROXY}?${qs}`, { headers: sbHeaders });
+      if (!res.ok) throw new Error(`Proxy error ${res.status}`);
+      return res.json();
+    }
 
     // ─── Helpers ───────────────────────────────────────
     function stageClass(stage) {
@@ -557,8 +563,7 @@
     // ─── Load national status ──────────────────────────
     async function loadNationalStatus() {
       try {
-        const res  = await fetch(`${ESP_BASE}/status`, { headers: espHeaders });
-        const data = await res.json();
+        const data = await esp("status");
         const stage = data?.status?.eskom?.stage ?? 0;
         const cls   = stageClass(stage);
 
@@ -574,7 +579,7 @@
         // Load streak from Supabase
         const sb = await fetch(
           `${SB_URL}/rest/v1/eskom_grid_metrics?select=consec_days_no_ls&order=report_date.desc&limit=1`,
-          { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+          { headers: sbHeaders }
         );
         const rows = await sb.json();
         const days = rows?.[0]?.consec_days_no_ls;
@@ -600,8 +605,7 @@
       results.innerHTML = `<div class="state-msg"><div class="spinner"></div>Searching for "${query}"…</div>`;
 
       try {
-        const res  = await fetch(`${ESP_BASE}/areas_search?text=${encodeURIComponent(query)}`, { headers: espHeaders });
-        const data = await res.json();
+        const data = await esp("areas_search", { text: query });
         const areas = data?.areas ?? [];
 
         if (!areas.length) {
@@ -640,8 +644,7 @@
       document.getElementById("areaPanel").classList.add("visible");
 
       try {
-        const res  = await fetch(`${ESP_BASE}/area?id=${id}`, { headers: espHeaders });
-        const data = await res.json();
+        const data = await esp("area", { id });
 
         const info   = data?.info   ?? {};
         const events = data?.events ?? [];
