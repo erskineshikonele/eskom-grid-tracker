@@ -437,6 +437,84 @@
       .stage-badge { font-size: 2rem; }
       .search-input { min-width: 100%; }
     }
+
+    /* ─── Load reduction panel ────────────────────────── */
+    .lr-panel {
+      margin-bottom: 20px;
+    }
+    .lr-province-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .lr-province-badge.cleared {
+      background: rgba(34,197,94,0.12);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.3);
+    }
+    .lr-province-badge.affected {
+      background: rgba(249,115,22,0.12);
+      color: var(--orange);
+      border: 1px solid rgba(249,115,22,0.3);
+    }
+    .lr-province-badge.partial {
+      background: rgba(232,160,32,0.12);
+      color: var(--amber);
+      border: 1px solid rgba(232,160,32,0.3);
+    }
+    .lr-community {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 10px;
+    }
+    .lr-community-heading {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .lr-report-count {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--dim);
+      margin-bottom: 10px;
+    }
+    .lr-report-count strong { color: var(--orange); }
+    .lr-report-count.none strong { color: var(--green); }
+    .lr-report-btn {
+      background: none;
+      border: 1px solid var(--orange);
+      color: var(--orange);
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .lr-report-btn:hover {
+      background: rgba(249,115,22,0.1);
+    }
+    .lr-report-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .lr-report-msg {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      margin-top: 8px;
+      color: var(--green);
+    }
   </style>
 </head>
 <body>
@@ -495,12 +573,10 @@
         <button class="back-btn" onclick="showSearch()">← Back to search</button>
       </div>
 
-      <div class="load-reduction-card" id="loadReductionCard">
-        <strong>Load Reduction:</strong> As of the latest Eskom weekly report (19 Jun 2026),
-        Eskom has restored <strong>886,717 households</strong> from load reduction nationwide —
-        52% of the total target. Load reduction continues in parts of Gauteng, KwaZulu-Natal,
-        and the Eastern Cape where illegal connections and infrastructure overload persist.
-        Northern Cape and Western Cape have been fully cleared.
+      <div id="loadReductionPanel">
+        <div class="load-reduction-card">
+          <strong>Load Reduction:</strong> Loading province data…
+        </div>
       </div>
 
       <div class="area-status-row" id="areaStatusRow"></div>
@@ -725,6 +801,10 @@
         `;
         document.getElementById("areaStatusRow").innerHTML = statusHtml;
 
+        // Load reduction panel
+        const province = getProvince(info.region ?? region ?? id);
+        await renderLoadReduction(id, name, province);
+
         // Schedule days
         if (!schedule.length && !events.length) {
           document.getElementById("scheduleDays").innerHTML =
@@ -773,6 +853,109 @@
     function showSearch() {
       document.getElementById("areaPanel").classList.remove("visible");
       document.getElementById("searchSection").style.display = "block";
+    }
+
+
+    // ─── Province-level load reduction data ───────────────
+    const PROVINCE_LR_STATUS = {
+      "Western Cape":  { status: "cleared",  label: "✓ Cleared", detail: "Western Cape fully cleared from load reduction" },
+      "Northern Cape": { status: "cleared",  label: "✓ Cleared", detail: "Northern Cape fully cleared from load reduction" },
+      "Eastern Cape":  { status: "affected", label: "⚠ Affected", detail: "Load reduction ongoing in parts of Eastern Cape" },
+      "KwaZulu-Natal": { status: "affected", label: "⚠ Affected", detail: "Load reduction ongoing in parts of KwaZulu-Natal" },
+      "Gauteng":       { status: "partial",  label: "~ Partial",  detail: "Load reduction being reduced in Gauteng — 886,717 households restored so far" },
+      "Limpopo":       { status: "partial",  label: "~ Partial",  detail: "Load reduction ongoing in parts of Limpopo" },
+      "Mpumalanga":    { status: "partial",  label: "~ Partial",  detail: "Load reduction ongoing in parts of Mpumalanga" },
+      "North West":    { status: "partial",  label: "~ Partial",  detail: "Load reduction ongoing in parts of North West" },
+      "Free State":    { status: "partial",  label: "~ Partial",  detail: "Load reduction ongoing in parts of Free State" },
+    };
+
+    function getProvince(regionStr) {
+      if (!regionStr) return null;
+      const r = regionStr.toLowerCase();
+      if (r.includes("western cape") || r.includes("wc_")) return "Western Cape";
+      if (r.includes("northern cape") || r.includes("nc_")) return "Northern Cape";
+      if (r.includes("eastern cape") || r.includes("ec_")) return "Eastern Cape";
+      if (r.includes("kwazulu") || r.includes("kzn")) return "KwaZulu-Natal";
+      if (r.includes("gauteng") || r.includes("gt_") || r.includes("jhb") || r.includes("tsh")) return "Gauteng";
+      if (r.includes("limpopo") || r.includes("lp_")) return "Limpopo";
+      if (r.includes("mpumalanga") || r.includes("mp_")) return "Mpumalanga";
+      if (r.includes("north west") || r.includes("nw_")) return "North West";
+      if (r.includes("free state") || r.includes("fs_")) return "Free State";
+      return null;
+    }
+
+    async function fetchReportCount(areaId) {
+      try {
+        const since = new Date(Date.now() - 24*60*60*1000).toISOString();
+        const res = await fetch(
+          `${SB_URL}/rest/v1/load_reduction_reports?area_id=eq.${encodeURIComponent(areaId)}&expires_at=gte.${encodeURIComponent(since)}&select=id`,
+          { headers: sbHeaders }
+        );
+        const data = await res.json();
+        return Array.isArray(data) ? data.length : 0;
+      } catch { return 0; }
+    }
+
+    async function submitReport(areaId, areaName, province) {
+      try {
+        const res = await fetch(`${SB_URL}/rest/v1/load_reduction_reports`, {
+          method: "POST",
+          headers: { ...sbHeaders, "Content-Type": "application/json", "Prefer": "return=minimal" },
+          body: JSON.stringify({ area_id: areaId, area_name: areaName, province }),
+        });
+        return res.ok || res.status === 201;
+      } catch { return false; }
+    }
+
+    async function renderLoadReduction(areaId, areaName, province) {
+      const container = document.getElementById("loadReductionPanel");
+      if (!container) return;
+      const prov = province || "Unknown";
+      const lr = PROVINCE_LR_STATUS[prov] || { status: "partial", label: "? Unknown", detail: "No province data available" };
+      const count = await fetchReportCount(areaId);
+      const hasReports = count > 0;
+      container.innerHTML = `
+        <div class="lr-panel">
+          <div class="lr-province-badge ${lr.status}">${lr.label} — ${prov}</div>
+          <div style="font-size:0.78rem;color:var(--dim);margin-bottom:8px;">${lr.detail}</div>
+          <div style="font-size:0.7rem;color:var(--muted);font-family:var(--mono);margin-bottom:12px;">
+            Source: Eskom weekly press release · Last updated 19 Jun 2026
+          </div>
+          <div class="lr-community">
+            <div class="lr-community-heading">Community Reports — Last 24 Hours</div>
+            <div class="lr-report-count ${hasReports ? '' : 'none'}" id="lrCount">
+              ${hasReports
+                ? `<strong>${count} report${count>1?'s':''}</strong> of load reduction in this area in the last 24 hours`
+                : `<strong>No reports</strong> of load reduction in this area in the last 24 hours`}
+            </div>
+            <button class="lr-report-btn" id="lrReportBtn"
+              onclick="handleReport('${areaId}','${areaName.replace(/'/g,"\'")}','${prov}')">
+              ⚡ Report load reduction in my area
+            </button>
+            <div class="lr-report-msg" id="lrReportMsg"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function handleReport(areaId, areaName, province) {
+      const btn = document.getElementById("lrReportBtn");
+      const msg = document.getElementById("lrReportMsg");
+      btn.disabled = true;
+      btn.textContent = "Submitting…";
+      const ok = await submitReport(areaId, areaName, province);
+      if (ok) {
+        msg.textContent = "✓ Report submitted. Thank you for helping your community.";
+        btn.textContent = "✓ Reported";
+        const count = await fetchReportCount(areaId);
+        document.getElementById("lrCount").innerHTML =
+          `<strong>${count} report${count>1?'s':''}</strong> of load reduction in this area in the last 24 hours`;
+      } else {
+        msg.style.color = "var(--red)";
+        msg.textContent = "Failed to submit. Please try again.";
+        btn.disabled = false;
+        btn.textContent = "⚡ Report load reduction in my area";
+      }
     }
 
     // ─── Enter key search ──────────────────────────────
