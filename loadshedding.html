@@ -526,8 +526,42 @@
     async function esp(action, params = {}) {
       const qs = new URLSearchParams({ action, ...params }).toString();
       const res = await fetch(`${PROXY}?${qs}`, { headers: sbHeaders });
-      if (!res.ok) throw new Error(`Proxy error ${res.status}`);
+
+      if (res.status === 429) {
+        throw new Error("RATE_LIMIT");
+      }
+      if (res.status === 410) {
+        throw new Error("API_GONE");
+      }
+      if (!res.ok) {
+        throw new Error(`Proxy error ${res.status}`);
+      }
       return res.json();
+    }
+
+    // Friendly error messages
+    function friendlyError(err) {
+      const msg = err.message;
+      if (msg === "RATE_LIMIT") {
+        return `
+          <div class="state-msg">
+            <div style="font-size:1.5rem;margin-bottom:8px;">⏳</div>
+            <strong style="color:var(--amber)">Daily API limit reached</strong><br>
+            The EskomSePush API has a 50-call daily limit on the free tier.
+            Today's quota is exhausted from setup and testing.<br>
+            <span style="color:var(--green);margin-top:8px;display:block">
+              ✓ Quota resets at midnight — try again tomorrow.
+            </span>
+          </div>`;
+      }
+      if (msg === "API_GONE") {
+        return `<div class="state-msg" style="color:var(--red)">
+          API endpoint unavailable. Please try again later.
+        </div>`;
+      }
+      return `<div class="state-msg" style="color:var(--red)">
+        Error: ${msg}. Please try again.
+      </div>`;
     }
 
     // ─── Helpers ───────────────────────────────────────
@@ -587,8 +621,11 @@
           document.getElementById("stageStreak").textContent = `⚡ ${days} days without load shedding`;
         }
       } catch (err) {
-        document.getElementById("stageTitle").textContent = "Status unavailable";
-        document.getElementById("stageMeta").textContent  = "Could not reach EskomSePush API";
+        const isRateLimit = err.message === "RATE_LIMIT";
+        document.getElementById("stageTitle").textContent = isRateLimit ? "API limit reached" : "Status unavailable";
+        document.getElementById("stageMeta").textContent  = isRateLimit
+          ? "Daily quota exhausted — resets at midnight. Grid data still available on the dashboard."
+          : "Could not reach EskomSePush API";
         console.error(err);
       }
     }
@@ -623,7 +660,7 @@
           </div>
         `).join("");
       } catch (err) {
-        results.innerHTML = `<div class="state-msg" style="color:#ef4444">Search failed: ${err.message}</div>`;
+        results.innerHTML = friendlyError(err);
       } finally {
         btn.disabled = false;
         btn.textContent = "Search";
@@ -728,8 +765,7 @@
         }).join("");
 
       } catch (err) {
-        document.getElementById("areaStatusRow").innerHTML =
-          `<div class="state-msg" style="color:#ef4444">Failed to load area data: ${err.message}</div>`;
+        document.getElementById("areaStatusRow").innerHTML = friendlyError(err);
       }
     }
 
