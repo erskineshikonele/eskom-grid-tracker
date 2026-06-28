@@ -883,6 +883,7 @@
       // KwaZulu-Natal
       { id: "za_kzn_eth_durbancentral_dh78",     name: "Durban Central",       region: "KwaZulu-Natal",  municipality: "eThekwini" },
       { id: "za_kzn_eth_durbanharbour_qodr",     name: "Durban Harbour",       region: "KwaZulu-Natal",  municipality: "eThekwini" },
+      { id: "za_gt_jhb_johannesburg_9hfs",       name: "Soweto (Gauteng)",     region: "Gauteng",        municipality: "City of Johannesburg" },
       { id: "za_kzn_eth_soweto_c2b7",            name: "Soweto (KZN)",         region: "KwaZulu-Natal",  municipality: "eThekwini" },
       { id: "za_kzn_dc21_portshepstone_4eci",    name: "Port Shepstone",       region: "KwaZulu-Natal",  municipality: "Hibiscus Coast" },
       // Eastern Cape
@@ -907,11 +908,26 @@
       { id: "za_nw_dc37_rustenburgnorth_vgi8",   name: "Rustenburg North",     region: "North West",     municipality: "Rustenburg" },
     ];
 
+    // Area aliases for common searches
+    const AREA_ALIASES = {
+      "soweto": "za_gt_jhb_johannesburg_9hfs",
+      "alex":   "za_gt_jhb_johannesburgnorth_l6hx",
+      "alexandra": "za_gt_jhb_johannesburgnorth_l6hx",
+      "sandton": "za_gt_jhb_sandown_so5u",
+    };
+
     function searchStaticAreas(query) {
       const q = query.toLowerCase().trim();
+      // Check aliases first
+      if (AREA_ALIASES[q]) {
+        const aliasId = AREA_ALIASES[q];
+        const match = SA_AREAS.find(a => a.id === aliasId);
+        if (match) return [match];
+      }
       return SA_AREAS.filter(a =>
         a.name.toLowerCase().includes(q) ||
-        a.region.toLowerCase().includes(q)
+        a.region.toLowerCase().includes(q) ||
+        (a.municipality && a.municipality.toLowerCase().includes(q))
       ).slice(0, 10);
     }
 
