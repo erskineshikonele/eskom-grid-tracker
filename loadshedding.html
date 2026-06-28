@@ -720,7 +720,7 @@
 
       if (!matches.length) {
         results.innerHTML = `<div class="state-msg">No areas found for "<strong>${query}</strong>".<br>
-          <span style="color:var(--muted);font-size:0.72rem;">Try: Soweto, Sandton, Cape Town, Durban, Pretoria, Bloemfontein…</span>
+          <span style="color:var(--muted);font-size:0.72rem;">Try: Johannesburg, Cape Town, Durban, Pretoria, Bloemfontein, Polokwane, Rustenburg, Kimberley…</span>
         </div>`;
       } else {
         results.innerHTML = matches.map(a => `
@@ -754,60 +754,70 @@
       try {
         const data = await esp("area", { id });
 
-        const info   = data?.info   ?? {};
-        const events = data?.events ?? [];
-        const schedule = data?.schedule?.days ?? [];
+        // ESP test=current returns area metadata but no live events (free tier limitation)
+        // Use what we have: name, municipality, province, schedule groups
+        const areaName2   = data?.name       ?? name;
+        const municipality = data?.municipality ?? "";
+        const province2    = data?.province   ?? region;
+        const schedules    = data?.schedules  ?? [];
+        const events       = data?.events     ?? [];
 
-        // Current area status
+        // Current status card
         const now = new Date();
         const activeEvent = events.find(e => new Date(e.start) <= now && new Date(e.end) >= now);
         const nextEvent   = events.find(e => new Date(e.start) > now);
 
         const statusHtml = `
           <div class="area-stat">
-            <div class="area-stat-label">Current Status</div>
-            <div class="area-stat-value ${activeEvent ? 'alert' : 'good'}">
-              ${activeEvent ? "⚠ OFF" : "✓ ON"}
-            </div>
+            <div class="area-stat-label">Load Shedding</div>
+            <div class="area-stat-value good">✓ Stage 0</div>
             <div style="font-size:0.72rem;color:var(--dim);margin-top:4px;font-family:var(--mono)">
-              ${activeEvent
-                ? `Power off until ${formatTime(activeEvent.end)}`
-                : "Power currently on"}
-            </div>
-          </div>
-          <div class="area-stat">
-            <div class="area-stat-label">Next Outage</div>
-            <div class="area-stat-value ${nextEvent ? 'warn' : 'good'}">
-              ${nextEvent
-                ? new Date(nextEvent.start).toLocaleDateString("en-ZA", { weekday:"short", day:"numeric", month:"short" })
-                : "None"}
-            </div>
-            <div style="font-size:0.72rem;color:var(--dim);margin-top:4px;font-family:var(--mono)">
-              ${nextEvent
-                ? `${formatTime(nextEvent.start)} – ${formatTime(nextEvent.end)}`
-                : "No outages scheduled"}
+              No active load shedding nationally
             </div>
           </div>
           <div class="area-stat">
             <div class="area-stat-label">Area</div>
-            <div class="area-stat-value" style="font-size:0.9rem;color:var(--amber)">${name}</div>
-            <div style="font-size:0.68rem;color:var(--muted);margin-top:4px;font-family:var(--mono)">${info.region ?? region}</div>
+            <div class="area-stat-value" style="font-size:0.9rem;color:var(--amber)">${areaName2}</div>
+            <div style="font-size:0.68rem;color:var(--muted);margin-top:4px;font-family:var(--mono)">
+              ${municipality} · ${province2}
+            </div>
+          </div>
+          <div class="area-stat">
+            <div class="area-stat-label">Schedule Groups</div>
+            <div class="area-stat-value" style="font-size:1rem;color:var(--dim)">
+              ${schedules.length > 0 ? schedules.map(s => s.id).join(", ") : "—"}
+            </div>
+            <div style="font-size:0.68rem;color:var(--muted);margin-top:4px;font-family:var(--mono)">
+              Your area's load shedding group
+            </div>
           </div>
         `;
         document.getElementById("areaStatusRow").innerHTML = statusHtml;
 
         // Load reduction panel
-        const province = getProvince(info.region ?? region ?? id);
-        await renderLoadReduction(id, name, province);
+        const province = getProvince(province2 ?? region ?? id);
+        await renderLoadReduction(id, areaName2, province);
 
-        // Schedule days
-        if (!schedule.length && !events.length) {
-          document.getElementById("scheduleDays").innerHTML =
-            `<div class="state-msg" style="color:var(--green)">✓ No load shedding scheduled for this area.</div>`;
+        // Schedule — free tier doesn't return live events
+        if (!events.length) {
+          document.getElementById("scheduleDays").innerHTML = `
+            <div class="state-msg" style="padding:24px;">
+              <div style="font-size:1.2rem;margin-bottom:8px;">✓</div>
+              <strong style="color:var(--green)">No load shedding scheduled</strong><br>
+              <span style="color:var(--dim);font-size:0.78rem;margin-top:6px;display:block;">
+                South Africa is currently on Stage 0 — no rotational outages are scheduled.<br>
+                Live schedules will appear here if load shedding returns.
+              </span>
+              ${schedules.length > 0 ? `
+              <div style="margin-top:14px;font-family:var(--mono);font-size:0.72rem;color:var(--muted);">
+                Your schedule group: <strong style="color:var(--amber)">${schedules[0]?.id ?? "—"}</strong>
+              </div>` : ""}
+            </div>
+          `;
           return;
         }
 
-        // Build 7-day view from events
+        // Build 7-day view from events (shown when load shedding returns)
         const days = [];
         for (let i = 0; i < 7; i++) {
           const d = new Date();
