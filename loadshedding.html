@@ -727,7 +727,7 @@
           <div class="result-item" onclick="loadArea('${a.id}', '${encodeURIComponent(a.name)}', '${encodeURIComponent(a.region)}')">
             <div>
               <div class="result-name">${a.name}</div>
-              <div class="result-region">${a.region}</div>
+              <div class="result-region">${a.municipality ? a.municipality + ' · ' : ''}${a.region}</div>
             </div>
             <div class="result-arrow">→</div>
           </div>
@@ -852,54 +852,49 @@
 
 
 
-    // ─── Static area database (common SA areas with ESP IDs) ──
-    // Areas_search is not available on free tier — we use a static list
-    // and fall back to test=current for schedules
+    // ─── Static area database — verified real ESP IDs ──────
     const SA_AREAS = [
       // Gauteng
-      { id: "eskde-10-fourwaysext10cityofjohannesburggauteng", name: "Fourways", region: "Gauteng" },
-      { id: "eskde-10-sandtonext2cityofjohannesburggauteng", name: "Sandton", region: "Gauteng" },
-      { id: "eskde-10-soweto1cityofjohannesburggauteng", name: "Soweto", region: "Gauteng" },
-      { id: "eskde-10-alexandracityofjohannesburggauteng", name: "Alexandra", region: "Gauteng" },
-      { id: "eskde-10-randburggauteng", name: "Randburg", region: "Gauteng" },
-      { id: "eskde-10-roodepoortgauteng", name: "Roodepoort", region: "Gauteng" },
-      { id: "eskde-10-midrandcityofjohannesburggauteng", name: "Midrand", region: "Gauteng" },
-      { id: "eskde-10-centurion1tshwanegauteng", name: "Centurion", region: "Gauteng" },
-      { id: "eskde-10-pretoriacbd1tshwanegauteng", name: "Pretoria CBD", region: "Gauteng" },
-      { id: "eskde-10-soshanguve1tshwanegauteng", name: "Soshanguve", region: "Gauteng" },
-      { id: "eskde-10-mamelodi1tshwanegauteng", name: "Mamelodi", region: "Gauteng" },
-      { id: "eskde-10-germiston1ekurhulenigauteng", name: "Germiston", region: "Gauteng" },
-      { id: "eskde-10-benoni1ekurhulenigauteng", name: "Benoni", region: "Gauteng" },
-      { id: "eskde-10-boksburg1ekurhulenigauteng", name: "Boksburg", region: "Gauteng" },
-      { id: "eskde-10-katlehongekhurhulenigauteng", name: "Katlehong", region: "Gauteng" },
-      { id: "eskde-10-vereeniging1emfulenigauteng", name: "Vereeniging", region: "Gauteng" },
-      { id: "eskde-10-vanderbijlpark1emfulenigauteng", name: "Vanderbijlpark", region: "Gauteng" },
+      { id: "za_gt_jhb_johannesburg_9hfs",       name: "Johannesburg",         region: "Gauteng",        municipality: "City of Johannesburg" },
+      { id: "za_gt_jhb_johannesburgnorth_l6hx",  name: "Johannesburg North",   region: "Gauteng",        municipality: "City of Johannesburg" },
+      { id: "za_gt_jhb_sandown_so5u",            name: "Sandown (Sandton)",     region: "Gauteng",        municipality: "City of Johannesburg" },
+      { id: "za_gt_tsh_pretoria_c6k7",           name: "Pretoria",             region: "Gauteng",        municipality: "City of Tshwane" },
+      { id: "za_gt_tsh_pretoriacentral_l7ca",    name: "Pretoria Central",     region: "Gauteng",        municipality: "City of Tshwane" },
+      { id: "za_gt_tsh_pretorianorth_uj3f",      name: "Pretoria North",       region: "Gauteng",        municipality: "City of Tshwane" },
+      { id: "za_gt_tsh_pretoriawest_hiyh",       name: "Pretoria West",        region: "Gauteng",        municipality: "City of Tshwane" },
+      { id: "za_gt_tsh_pretoriagardens_76u8",    name: "Pretoria Gardens",     region: "Gauteng",        municipality: "City of Tshwane" },
+      { id: "za_gt_eku_elsburg_sj7p",            name: "Elsburg (Ekurhuleni)", region: "Gauteng",        municipality: "Ekurhuleni" },
       // Western Cape
-      { id: "eskde-10-capetowncbd1cityofcapetownwesterncape", name: "Cape Town CBD", region: "Western Cape" },
-      { id: "eskde-10-bellville1cityofcapetownwesterncape", name: "Bellville", region: "Western Cape" },
-      { id: "eskde-10-mitchellsplain1cityofcapetownwesterncape", name: "Mitchells Plain", region: "Western Cape" },
-      { id: "eskde-10-khayelitsha1cityofcapetownwesterncape", name: "Khayelitsha", region: "Western Cape" },
-      { id: "eskde-10-stellenbosch1westerncape", name: "Stellenbosch", region: "Western Cape" },
-      { id: "eskde-10-george1westerncape", name: "George", region: "Western Cape" },
+      { id: "za_wc_cpt_capetowncbd_utix",        name: "Cape Town CBD",        region: "Western Cape",   municipality: "City of Cape Town" },
+      { id: "za_wc_cpt_capegate_hexv",           name: "Cape Gate",            region: "Western Cape",   municipality: "City of Cape Town" },
+      { id: "za_wc_cpt_durbanville_tp61",        name: "Durbanville",          region: "Western Cape",   municipality: "City of Cape Town" },
+      { id: "za_wc_cpt_simonstown_8iap",         name: "Simon's Town",         region: "Western Cape",   municipality: "City of Cape Town" },
+      { id: "za_wc_cpt_universityofcapetown_8usu", name: "UCT / Rondebosch",  region: "Western Cape",   municipality: "City of Cape Town" },
       // KwaZulu-Natal
-      { id: "eskde-10-durban1ethekwinikwazulunatal", name: "Durban", region: "KwaZulu-Natal" },
-      { id: "eskde-10-pinetown1ethekwinikwazulunatal", name: "Pinetown", region: "KwaZulu-Natal" },
-      { id: "eskde-10-umlazi1ethekwinikwazulunatal", name: "Umlazi", region: "KwaZulu-Natal" },
-      { id: "eskde-10-pietermaritzburg1msunduziKwazulunatal", name: "Pietermaritzburg", region: "KwaZulu-Natal" },
-      { id: "za_kzn_eth_soweto_c2b7", name: "Soweto (KZN)", region: "KwaZulu-Natal" },
+      { id: "za_kzn_eth_durbancentral_dh78",     name: "Durban Central",       region: "KwaZulu-Natal",  municipality: "eThekwini" },
+      { id: "za_kzn_eth_durbanharbour_qodr",     name: "Durban Harbour",       region: "KwaZulu-Natal",  municipality: "eThekwini" },
+      { id: "za_kzn_eth_soweto_c2b7",            name: "Soweto (KZN)",         region: "KwaZulu-Natal",  municipality: "eThekwini" },
+      { id: "za_kzn_dc21_portshepstone_4eci",    name: "Port Shepstone",       region: "KwaZulu-Natal",  municipality: "Hibiscus Coast" },
       // Eastern Cape
-      { id: "eskde-10-portelizabeth1nelsonmandelabayeasterncape", name: "Port Elizabeth", region: "Eastern Cape" },
-      { id: "eskde-10-eastlondon1buffalocityeasterncape", name: "East London", region: "Eastern Cape" },
-      // Limpopo
-      { id: "eskde-10-polokwane1limpopo", name: "Polokwane", region: "Limpopo" },
-      // Mpumalanga
-      { id: "eskde-10-nelspruit1mbombelampumalanga", name: "Nelspruit", region: "Mpumalanga" },
-      // North West
-      { id: "eskde-10-rustenburg1northwestprovince", name: "Rustenburg", region: "North West" },
+      { id: "za_ec_buf_eastlondoncbd_fc50",      name: "East London CBD",      region: "Eastern Cape",   municipality: "Buffalo City" },
+      { id: "za_ec_buf_duncanvillage_d40f",      name: "Duncan Village",       region: "Eastern Cape",   municipality: "Buffalo City" },
+      { id: "za_ec_buf_mdantsaneeast_uzls",      name: "Mdantsane",            region: "Eastern Cape",   municipality: "Buffalo City" },
+      { id: "za_ec_nma_portelizaberthcentral_gt4c", name: "Port Elizabeth Central", region: "Eastern Cape", municipality: "Nelson Mandela Bay" },
+      { id: "za_ec_nma_sowetoonsea_6ml2",        name: "Soweto on Sea (PE)",   region: "Eastern Cape",   municipality: "Nelson Mandela Bay" },
       // Free State
-      { id: "eskde-10-bloemfontein1mangaunfreestate", name: "Bloemfontein", region: "Free State" },
+      { id: "za_fs_man_bloemfontein_h8lq",       name: "Bloemfontein",         region: "Free State",     municipality: "Mangaung" },
+      { id: "za_fs_man_bloemfonteincentral_sicd", name: "Bloemfontein Central", region: "Free State",    municipality: "Mangaung" },
+      // Limpopo
+      { id: "za_lim_dc35_polokwanecentral_arsw", name: "Polokwane Central",    region: "Limpopo",        municipality: "Polokwane" },
+      { id: "za_lim_dc35_newpolokwane_pphr",     name: "Polokwane New",        region: "Limpopo",        municipality: "Polokwane" },
+      { id: "za_lim_dc35_polokwanerural_236t",   name: "Polokwane Rural",      region: "Limpopo",        municipality: "Polokwane" },
       // Northern Cape
-      { id: "eskde-10-kimberley1solaplaatsnortherncape", name: "Kimberley", region: "Northern Cape" },
+      { id: "za_nc_dc9_kimberley_jovn",          name: "Kimberley",            region: "Northern Cape",  municipality: "Sol Plaatjie" },
+      { id: "za_nc_dc9_kimberleycentral_e0a6",   name: "Kimberley Central",    region: "Northern Cape",  municipality: "Sol Plaatjie" },
+      { id: "za_nc_dc9_kimberleynorth_hap9",     name: "Kimberley North",      region: "Northern Cape",  municipality: "Sol Plaatjie" },
+      // North West
+      { id: "za_nw_dc37_rustenburg_87ps",        name: "Rustenburg",           region: "North West",     municipality: "Rustenburg" },
+      { id: "za_nw_dc37_rustenburgnorth_vgi8",   name: "Rustenburg North",     region: "North West",     municipality: "Rustenburg" },
     ];
 
     function searchStaticAreas(query) {
