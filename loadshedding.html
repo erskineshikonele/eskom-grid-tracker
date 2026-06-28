@@ -706,7 +706,7 @@
       }
     }
 
-    // ─── Search areas ──────────────────────────────────
+    // ─── Search areas (static list — free tier doesn't support areas_search) ──
     async function searchAreas() {
       const query = document.getElementById("searchInput").value.trim();
       if (!query) return;
@@ -715,18 +715,15 @@
       const results = document.getElementById("searchResults");
       btn.disabled  = true;
       btn.textContent = "Searching…";
-      results.innerHTML = `<div class="state-msg"><div class="spinner"></div>Searching for "${query}"…</div>`;
 
-      try {
-        const data = await esp("areas_search", { text: query });
-        const areas = data?.areas ?? [];
+      const matches = searchStaticAreas(query);
 
-        if (!areas.length) {
-          results.innerHTML = `<div class="state-msg">No areas found for "<strong>${query}</strong>". Try a broader search term.</div>`;
-          return;
-        }
-
-        results.innerHTML = areas.slice(0, 10).map(a => `
+      if (!matches.length) {
+        results.innerHTML = `<div class="state-msg">No areas found for "<strong>${query}</strong>".<br>
+          <span style="color:var(--muted);font-size:0.72rem;">Try: Soweto, Sandton, Cape Town, Durban, Pretoria, Bloemfontein…</span>
+        </div>`;
+      } else {
+        results.innerHTML = matches.map(a => `
           <div class="result-item" onclick="loadArea('${a.id}', '${encodeURIComponent(a.name)}', '${encodeURIComponent(a.region)}')">
             <div>
               <div class="result-name">${a.name}</div>
@@ -735,12 +732,10 @@
             <div class="result-arrow">→</div>
           </div>
         `).join("");
-      } catch (err) {
-        results.innerHTML = friendlyError(err);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Search";
       }
+
+      btn.disabled = false;
+      btn.textContent = "Search";
     }
 
     // ─── Load area schedule ────────────────────────────
@@ -855,6 +850,65 @@
       document.getElementById("searchSection").style.display = "block";
     }
 
+
+
+    // ─── Static area database (common SA areas with ESP IDs) ──
+    // Areas_search is not available on free tier — we use a static list
+    // and fall back to test=current for schedules
+    const SA_AREAS = [
+      // Gauteng
+      { id: "eskde-10-fourwaysext10cityofjohannesburggauteng", name: "Fourways", region: "Gauteng" },
+      { id: "eskde-10-sandtonext2cityofjohannesburggauteng", name: "Sandton", region: "Gauteng" },
+      { id: "eskde-10-soweto1cityofjohannesburggauteng", name: "Soweto", region: "Gauteng" },
+      { id: "eskde-10-alexandracityofjohannesburggauteng", name: "Alexandra", region: "Gauteng" },
+      { id: "eskde-10-randburggauteng", name: "Randburg", region: "Gauteng" },
+      { id: "eskde-10-roodepoortgauteng", name: "Roodepoort", region: "Gauteng" },
+      { id: "eskde-10-midrandcityofjohannesburggauteng", name: "Midrand", region: "Gauteng" },
+      { id: "eskde-10-centurion1tshwanegauteng", name: "Centurion", region: "Gauteng" },
+      { id: "eskde-10-pretoriacbd1tshwanegauteng", name: "Pretoria CBD", region: "Gauteng" },
+      { id: "eskde-10-soshanguve1tshwanegauteng", name: "Soshanguve", region: "Gauteng" },
+      { id: "eskde-10-mamelodi1tshwanegauteng", name: "Mamelodi", region: "Gauteng" },
+      { id: "eskde-10-germiston1ekurhulenigauteng", name: "Germiston", region: "Gauteng" },
+      { id: "eskde-10-benoni1ekurhulenigauteng", name: "Benoni", region: "Gauteng" },
+      { id: "eskde-10-boksburg1ekurhulenigauteng", name: "Boksburg", region: "Gauteng" },
+      { id: "eskde-10-katlehongekhurhulenigauteng", name: "Katlehong", region: "Gauteng" },
+      { id: "eskde-10-vereeniging1emfulenigauteng", name: "Vereeniging", region: "Gauteng" },
+      { id: "eskde-10-vanderbijlpark1emfulenigauteng", name: "Vanderbijlpark", region: "Gauteng" },
+      // Western Cape
+      { id: "eskde-10-capetowncbd1cityofcapetownwesterncape", name: "Cape Town CBD", region: "Western Cape" },
+      { id: "eskde-10-bellville1cityofcapetownwesterncape", name: "Bellville", region: "Western Cape" },
+      { id: "eskde-10-mitchellsplain1cityofcapetownwesterncape", name: "Mitchells Plain", region: "Western Cape" },
+      { id: "eskde-10-khayelitsha1cityofcapetownwesterncape", name: "Khayelitsha", region: "Western Cape" },
+      { id: "eskde-10-stellenbosch1westerncape", name: "Stellenbosch", region: "Western Cape" },
+      { id: "eskde-10-george1westerncape", name: "George", region: "Western Cape" },
+      // KwaZulu-Natal
+      { id: "eskde-10-durban1ethekwinikwazulunatal", name: "Durban", region: "KwaZulu-Natal" },
+      { id: "eskde-10-pinetown1ethekwinikwazulunatal", name: "Pinetown", region: "KwaZulu-Natal" },
+      { id: "eskde-10-umlazi1ethekwinikwazulunatal", name: "Umlazi", region: "KwaZulu-Natal" },
+      { id: "eskde-10-pietermaritzburg1msunduziKwazulunatal", name: "Pietermaritzburg", region: "KwaZulu-Natal" },
+      { id: "za_kzn_eth_soweto_c2b7", name: "Soweto (KZN)", region: "KwaZulu-Natal" },
+      // Eastern Cape
+      { id: "eskde-10-portelizabeth1nelsonmandelabayeasterncape", name: "Port Elizabeth", region: "Eastern Cape" },
+      { id: "eskde-10-eastlondon1buffalocityeasterncape", name: "East London", region: "Eastern Cape" },
+      // Limpopo
+      { id: "eskde-10-polokwane1limpopo", name: "Polokwane", region: "Limpopo" },
+      // Mpumalanga
+      { id: "eskde-10-nelspruit1mbombelampumalanga", name: "Nelspruit", region: "Mpumalanga" },
+      // North West
+      { id: "eskde-10-rustenburg1northwestprovince", name: "Rustenburg", region: "North West" },
+      // Free State
+      { id: "eskde-10-bloemfontein1mangaunfreestate", name: "Bloemfontein", region: "Free State" },
+      // Northern Cape
+      { id: "eskde-10-kimberley1solaplaatsnortherncape", name: "Kimberley", region: "Northern Cape" },
+    ];
+
+    function searchStaticAreas(query) {
+      const q = query.toLowerCase().trim();
+      return SA_AREAS.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        a.region.toLowerCase().includes(q)
+      ).slice(0, 10);
+    }
 
     // ─── Province-level load reduction data ───────────────
     const PROVINCE_LR_STATUS = {
